@@ -1,17 +1,13 @@
 import socket
 import threading
 from DnsPacketParser import DnsPacket
-from RecordClass import RecordClass
 from RecordType import RecordType
 from ResourceRecord import ResourceRecord
 from Query import Query
 from DnsPacketComposer import DnsPacketComposer, generate_flags
 import random
 from utils import get_str_ip_from_bytes, get_ip_in_bytes_from_string
-
-
-ROOT_DNS = '198.41.0.4'
-DNS_PORT = 53
+from cfg import DNS_PORT, ROOT_DNS, LOCAL_PORT
 
 
 def make_request(req_ip, req_domain, sock):
@@ -94,7 +90,7 @@ def serve_client(sock, query, addr):
 
 def main():
     listen_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    listen_sock.bind(('127.0.0.1', 13337))
+    listen_sock.bind(('127.0.0.1', LOCAL_PORT))
 
     threads = set()
     while True:
