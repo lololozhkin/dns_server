@@ -32,7 +32,7 @@ def get_ip(req_ip, req_domain, sock):
         filter(lambda x: x.r_type == RecordType.A, response.additional))
 
     if len(response.answers):
-        return get_str_ip_from_bytes(response.answers[0].data)
+        return [get_str_ip_from_bytes(ans.data) for ans in response.answers]
 
     if len(additional_with_ip):
         ip = get_str_ip_from_bytes(additional_with_ip[0].data)
@@ -43,8 +43,28 @@ def get_ip(req_ip, req_domain, sock):
 
         if len(ns_authorities):
             ns = ns_authorities[0].data.decode()
-            authority_ip = get_ip(ROOT_DNS, ns, sock)
+            ips = get_ip(ROOT_DNS, ns, sock)
+            authority_ip = ips[0] if ips is not None else None
             return get_ip(authority_ip, req_domain, sock)
+
+
+def answer_for_multiply_query(domain_in_bytes, req_id, sock, addr):
+    parts = domain_in_bytes.split(b'.')
+    if any(part == b'multiply' for part in parts):
+        parts = parts[:parts.index(b'multiply')]
+        ans = 1
+        for part in map(bytes.decode, parts):
+            if part.isdigit():
+                ans = (ans * int(part)) % 256
+
+        data = get_ip_in_bytes_from_string(f'127.0.0.{ans}')
+        response_packet = DnsPacketComposer(id=req_id)
+        response_packet.add_answer(ResourceRecord(domain_in_bytes, data=data))
+        response_packet.set_flags(generate_flags(qa=1))
+        sock.sendto(response_packet.compose_packet(), addr)
+        return True
+
+    return False
 
 
 def serve_client(sock, query, addr):
@@ -57,11 +77,16 @@ def serve_client(sock, query, addr):
         return
     domain = packet.queries[0].name
 
-    ip = get_ip(ROOT_DNS, domain.decode(), socket_for_dns)
+    if answer_for_multiply_query(domain, req_id, sock, addr):
+        return
+
+    ips = get_ip(ROOT_DNS, domain.decode(), socket_for_dns)
     response_packet = DnsPacketComposer(id=req_id)
-    if ip is not None:
-        response = ResourceRecord(domain, data=get_ip_in_bytes_from_string(ip))
-        response_packet.add_answer(response)
+    if ips is not None:
+        for ip in ips:
+            response_packet.add_answer(
+                ResourceRecord(domain, data=get_ip_in_bytes_from_string(ip))
+            )
 
     response_packet.set_flags(generate_flags(qa=1))
     sock.sendto(response_packet.compose_packet(), addr)
