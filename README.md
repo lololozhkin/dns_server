@@ -6,4 +6,5 @@ Sample of using:
 
 
 __python3 main.py &__
+
 __dig google.com -p 13337 @127.0.0.1__
