@@ -5,5 +5,5 @@ You can also change dns root server, if you need it.
 Sample of using:
 
 
-## python3 main.py &
-## dig google.com -p 13337 @127.0.0.1
+__python3 main.py &__
+__dig google.com -p 13337 @127.0.0.1__
